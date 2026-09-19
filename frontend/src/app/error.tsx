@@ -1,0 +1,2 @@
+'use client'
+export default function Error({ error }: { error: Error }) { return (<div className='p-4'><h2 className='text-lg font-bold'>Error</h2><p className='text-muted-foreground'>{error.message}</p></div>) }

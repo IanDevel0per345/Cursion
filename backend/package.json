@@ -1,0 +1,24 @@
+{
+  "name": "cursion-backend",
+  "version": "1.0.0",
+  "description": "Cursion IPaaS Backend - 3000+ Connectors",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist",
+    "start": "bun run dist/index.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0",
+    "typescript": "^5.0.0",
+    "@types/bcryptjs": "^2.4.2"
+  }
+}

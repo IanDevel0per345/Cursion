@@ -1,0 +1,150 @@
+// Cursion Database Schema
+// PostgreSQL + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users & Organizations
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organizations  OrganizationMember[]
+  connections    Connection[]
+  apiKeys        ApiKey[]
+  executions     Execution[]
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     OrganizationMember[]
+}
+
+model OrganizationMember {
+  orgId        String
+  userId       String
+  role         String   @default("member") // "owner", "admin", "member"
+  createdAt    DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, userId])
+}
+
+// Connectors & Connections
+model Connector {
+  id          String   @id
+  name        String
+  description String?
+  icon        String?
+  authType    String   // "oauth2", "api_key", "basic"
+  config      Json?    // OAuth URLs, scopes, etc.
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  connections Connection[]
+}
+
+model Connection {
+  id                String    @id @default(uuid())
+  userId            String
+  connectorId       String
+  accountName       String?   // ex: email do Gmail
+  accessTokenEnc    String    // Encrypted
+  refreshTokenEnc   String?   // Encrypted
+  tokenExpiresAt    DateTime?
+  scopes            String[]
+  status            String    @default("active") // "active", "expired", "revoked"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connector    Connector  @relation(fields: [connectorId], references: [id])
+  executions   Execution[]
+
+  @@index([userId])
+  @@index([connectorId])
+}
+
+// Executions
+model Execution {
+  id           String   @id @default(uuid())
+  connectionId String
+  actionId     String
+  input        Json?
+  output       Json?
+  status       String   @default("pending") // "pending", "success", "failed"
+  error        String?
+  duration     Int?     // milliseconds
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+
+  @@index([connectionId])
+  @@index([userId])
+  @@index([status])
+}
+
+// API Keys
+model ApiKey {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  keyHash     String   // bcrypt hash
+  prefix      String   // First 8 chars for identification
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([prefix])
+}
+
+// Webhooks (for triggers)
+model WebhookSubscription {
+  id           String   @id @default(uuid())
+  userId       String
+  connectorId  String
+  triggerId    String
+  callbackUrl  String
+  secret       String?  // For webhook signature verification
+  config       Json?    // Trigger-specific config
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([connectorId, triggerId])
+}
+
+// Usage Metrics (for analytics)
+model UsageMetric {
+  id         String   @id @default(uuid())
+  userId     String
+  connectorId String
+  actionId   String
+  count      Int      @default(1)
+  date       DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([connectorId, date])
+  @@unique([userId, connectorId, actionId, date])
+}

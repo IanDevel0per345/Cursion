@@ -1,0 +1,1 @@
+export default function DashboardLayout({ children }: { children: React.ReactNode }) { return (<div className="flex h-screen"><div className="w-64 border-r p-4"><a href="/" className="font-bold">Cursion</a></div><main className="flex-1 p-6">{children}</main></div>) }

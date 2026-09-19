@@ -1,1 +1,0 @@
-export const SANDBOX_RECORD_RETENTION_DAYS = 7
