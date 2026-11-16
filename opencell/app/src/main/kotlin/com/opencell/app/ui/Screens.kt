@@ -118,6 +118,7 @@ fun autonomyLabel(m: AutonomyMode) = when (m) {
     AutonomyMode.ASSISTED -> "Assistido (pede aprovação a cada ação)"
     AutonomyMode.SUPERVISED -> "Supervisionada (confirma ações externas/irreversíveis)"
     AutonomyMode.BOUNDED_ROUTINE -> "Rotinas delimitadas"
+    AutonomyMode.PERMISSIVE -> "100% permissivo (faz tudo sem pedir autorização)"
 }
 
 @Composable
@@ -369,6 +370,18 @@ fun SettingsScreen(c: AppContainer, back: () -> Unit) {
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
+    var askPermissive by remember { mutableStateOf(false) }
+    if (askPermissive) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { askPermissive = false },
+        title = { Text("Ativar modo 100% permissivo?") },
+        text = {
+            Text("O OpenCell passará a enviar mensagens, publicar, excluir, comprar e pagar sem pedir sua confirmação, se a tarefa levar a isso. " +
+                "Uma instrução ambígua ou um erro da IA pode causar ações que não dá para desfazer. " +
+                "Continuam bloqueados: digitar em campos de senha, apps bloqueados e telas protegidas. O botão Parar OpenCell sempre funciona.")
+        },
+        confirmButton = { TextButton(onClick = { askPermissive = false; update { it.copy(autonomy = AutonomyMode.PERMISSIVE) } }) { Text("Ativar mesmo assim") } },
+        dismissButton = { TextButton(onClick = { askPermissive = false }) { Text("Cancelar") } },
+    )
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch(Dispatchers.IO) {
             val dao = c.db.tasks()
@@ -398,7 +411,9 @@ fun SettingsScreen(c: AppContainer, back: () -> Unit) {
     ScreenScaffold("Configurações", back) {
         item { OutlinedTextField(query, { query = it }, label = { Text("Buscar configuração") }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
         if (show("autonomia", "modo", "agente")) item {
-            ChoiceRow("Nível de autonomia", AutonomyMode.values().map { it to autonomyLabel(it) }, s.autonomy) { v -> update { it.copy(autonomy = v) } }
+            ChoiceRow("Nível de autonomia", AutonomyMode.values().map { it to autonomyLabel(it) }, s.autonomy) { v ->
+                if (v == AutonomyMode.PERMISSIVE) askPermissive = true else update { it.copy(autonomy = v) }
+            }
         }
         if (show("passos", "limite", "agente")) item { NumberField("Limite de passos por tarefa", s.maxSteps) { v -> update { it.copy(maxSteps = v) } } }
         if (show("timeout", "tempo", "agente")) item { NumberField("Timeout global da tarefa (s)", s.taskTimeoutSec) { v -> update { it.copy(taskTimeoutSec = v) } } }

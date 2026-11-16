@@ -224,4 +224,18 @@ class OrchestratorTest {
         assertEquals(report.summary, Outcome.SUCCESS, report.outcome)
         assertEquals(StepStatus.VERIFIED, report.steps.first().status)
     }
+
+    @Test fun permissiveModeSendsWithoutAskingAndSkipsConfirmationSteps() = runTest {
+        val d = FakeDevice().apply { screen = "chat" }; val j = Events(); val gate = Gate(false)
+        val plan = Plan(goal = "g", steps = listOf(
+            step("s0", AgentAction.RequestUserConfirmation("posso?")),
+            step("s1", tap("Enviar"), Expectation.TextVisible("Enviado")),
+            step("s2", AgentAction.CompleteTask("ok")),
+        ))
+        val cfgP = cfg.copy(policy = PolicySettings(mode = com.opencell.core.policy.AutonomyMode.PERMISSIVE))
+        val report = orch(d, FixedPlanner(plan), gate, j, cfgP).run("enviar")
+        assertEquals(report.summary, Outcome.SUCCESS, report.outcome)
+        assertEquals(1, d.sent)
+        assertTrue(gate.asked.isEmpty())
+    }
 }

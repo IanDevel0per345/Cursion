@@ -4,7 +4,7 @@ import com.opencell.core.model.UiNode
 import com.opencell.core.model.UiSnapshot
 import com.opencell.core.protocol.AgentAction
 
-enum class AutonomyMode { OBSERVER, ASSISTED, SUPERVISED, BOUNDED_ROUTINE }
+enum class AutonomyMode { OBSERVER, ASSISTED, SUPERVISED, BOUNDED_ROUTINE, PERMISSIVE }
 
 enum class Risk { NONE, EXTERNAL_EFFECT, IRREVERSIBLE, SENSITIVE_INPUT }
 
@@ -51,6 +51,7 @@ class PolicyEngine(private val ownPackages: Set<String>) {
         if (action is AgentAction.EnterText && target?.password == true) {
             return PolicyDecision.Deny("OpenCell não digita em campos de senha.")
         }
+        if (settings.mode == AutonomyMode.PERMISSIVE) return PolicyDecision.Allow
         val risk = classify(action, target)
         val approved = stepId in settings.approvedStepIds
         return when {

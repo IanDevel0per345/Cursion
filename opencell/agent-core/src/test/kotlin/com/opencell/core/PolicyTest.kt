@@ -71,4 +71,14 @@ class PolicyTest {
     @Test fun protectedScreenDenied() {
         assertTrue(engine.evaluate("s", AgentAction.TapElement(sel), node("Ok"), snap(protectedContent = true), PolicySettings()) is PolicyDecision.Deny)
     }
+
+    @Test fun permissiveModeNeverAsksForApprovalButKeepsHardBlocks() {
+        val s = PolicySettings(mode = AutonomyMode.PERMISSIVE)
+        listOf("Enviar", "Excluir conversa", "Pagar agora").forEach {
+            assertEquals(PolicyDecision.Allow, engine.evaluate("s", AgentAction.TapElement(sel), node(it), snap(), s))
+        }
+        assertTrue(engine.evaluate("s", AgentAction.EnterText(sel, "x"), node("", password = true), snap(), s) is PolicyDecision.Deny)
+        assertTrue(engine.evaluate("s", AgentAction.TapElement(sel), node("Ok"), snap("com.bank"), s.copy(blockedPackages = setOf("com.bank"))) is PolicyDecision.Deny)
+        assertTrue(engine.evaluate("s", AgentAction.TapElement(sel), node("Ok"), snap(protectedContent = true), s) is PolicyDecision.Deny)
+    }
 }

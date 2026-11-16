@@ -82,7 +82,7 @@ fun OnboardingScreen(c: AppContainer, openProviders: () -> Unit, onDone: () -> U
                     }
                     6 -> {
                         Text("Nível de autonomia", style = MaterialTheme.typography.headlineMedium)
-                        ChoiceRow("Comece de forma conservadora", AutonomyMode.values().filter { it != AutonomyMode.BOUNDED_ROUTINE }.map { it to autonomyLabel(it) }, autonomy) { autonomy = it }
+                        ChoiceRow("Comece de forma conservadora", AutonomyMode.values().filter { it != AutonomyMode.BOUNDED_ROUTINE && it != AutonomyMode.PERMISSIVE }.map { it to autonomyLabel(it) }, autonomy) { autonomy = it }
                         Text("Você pode mudar isso depois em Configurações.", style = MaterialTheme.typography.labelSmall)
                     }
                     7 -> {

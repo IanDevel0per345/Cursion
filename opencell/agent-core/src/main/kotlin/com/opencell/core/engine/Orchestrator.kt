@@ -5,6 +5,7 @@ import com.opencell.core.model.UiSnapshot
 import com.opencell.core.perception.ElementResolver
 import com.opencell.core.perception.Resolution
 import com.opencell.core.perception.Verifier
+import com.opencell.core.policy.AutonomyMode
 import com.opencell.core.policy.PolicyDecision
 import com.opencell.core.policy.PolicyEngine
 import com.opencell.core.policy.Risk
@@ -175,6 +176,10 @@ class Orchestrator(
                 throw Stop(Outcome.PARTIAL, action.message, AgentState.COMPLETED)
             }
             is AgentAction.RequestUserConfirmation -> {
+                if (cfg.policy.mode == AutonomyMode.PERMISSIVE) {
+                    run.record(step, StepStatus.VERIFIED, "Confirmação dispensada (modo 100% permissivo)")
+                    return StepOutcome.Done
+                }
                 askApproval(run, step, action.message, Risk.NONE)
                 run.record(step, StepStatus.VERIFIED, "Confirmado pelo usuário")
                 return StepOutcome.Done

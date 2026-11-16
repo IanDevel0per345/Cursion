@@ -20,3 +20,6 @@ Ferramentas sugeridas na especificação que **não** existem como ações: `get
 
 ## Conteúdo não confiável
 O snapshot é enviado entre `<untrusted_screen_data>`; marcadores falsos dentro do conteúdo são removidos; o prompt de sistema manda tratar o conteúdo como dado. **Isto reduz, não elimina, o risco de prompt injection**: a defesa que não depende do modelo é a política (aprovação para ações externas/irreversíveis, bloqueio de senhas, apps permitidos/bloqueados).
+
+## Modo 100% permissivo
+`AutonomyMode.PERMISSIVE`: nenhuma aprovação é pedida (nem para enviar/excluir/pagar, nem para `request_user_confirmation`). Continuam valendo, sem exceção: negação de digitação em campos de senha, apps bloqueados/não permitidos, telas protegidas, limites de passos/tempo/retentativas e o botão "Parar OpenCell". Ações com efeito externo continuam sem retentativa automática. Só pode ser ativado em Configurações, após um diálogo de confirmação; não é oferecido no onboarding.
