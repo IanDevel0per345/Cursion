@@ -22,7 +22,7 @@ data class AppSettings(
     val model: String = "",
     val fallbackModel: String = "",
     val timeoutSec: Int = 60,
-    val providerRetries: Int = 2,
+    val providerRetries: Int = 3,
     val temperature: String = "",
     val autonomy: AutonomyMode = AutonomyMode.SUPERVISED,
     val maxSteps: Int = 40,

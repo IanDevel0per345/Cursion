@@ -36,14 +36,20 @@ class RuleBasedPlanner : Planner {
     private fun unquote(raw: String, quoted: List<String>) =
         Regex("§(\\d+)§").replace(raw) { quoted[it.groupValues[1].toInt()] }.trim()
 
+    private val verbs = Regex("\\b(pesquis\\w*|busc\\w*|procur\\w*|cri\\w+|ativ\\w+|desativ\\w+|digit\\w+|escrev\\w+|envi\\w+|entre|entra|abr\\w+|toqu\\w+|cliqu\\w+|selecion\\w+|role|rol\\w+|volt\\w+|e|para|com|que|depois|sem)\\b")
+    private fun simpleLabel(label: String, maxWords: Int) =
+        label.isNotBlank() && label.trim().split(Regex("\\s+")).size <= maxWords && !verbs.containsMatchIn(label.lowercase())
+
     private fun parseClause(@Suppress("UNUSED_PARAMETER") plain: String, clause: String, quoted: List<String>): Triple<AgentAction, String, Expectation?>? {
         val c = clause.lowercase()
         Regex("^(?:toque|toca|clique|clica|selecione|seleciona|escolha|abra a aba|entre na aba|entre em)\\s+(?:em\\s+|na\\s+|no\\s+|a\\s+|o\\s+)?(?:aba\\s+|botão\\s+|conversa\\s+)?(.+)$").find(c)?.let {
             val label = unquote(clause.substring(it.groups[1]!!.range.first), quoted)
+            if (!simpleLabel(label, 4) && !clause.contains("§")) return null
             return Triple(AgentAction.TapElement(Selector(text = label)), "Tocar em \"$label\"", null)
         }
         Regex("^(?:abra|abrir|abre|inicie)\\s+(?:o\\s+|a\\s+)?(?:app|aplicativo|aplicação)?\\s*(?:de\\s+|do\\s+|da\\s+)?(.+)$").find(c)?.let {
             val name = unquote(clause.substring(it.groups[1]!!.range.first), quoted)
+            if (!simpleLabel(name, 3)) return null
             return Triple(AgentAction.OpenApplication(appName = name), "Abrir aplicativo $name", null)
         }
         Regex("^(?:digite|digita|escreva|escreve)\\s+(.+?)\\s+(?:no|na)\\s+(?:campo|caixa)(?:\\s+(?:de\\s+)?(.+))?$").find(c)?.let {

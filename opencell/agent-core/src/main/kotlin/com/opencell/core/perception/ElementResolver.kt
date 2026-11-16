@@ -16,13 +16,25 @@ object ElementResolver {
     fun resolve(selector: Selector, snapshot: UiSnapshot): Resolution {
         if (selector.isEmpty) return Resolution.NotFound
         val visible = snapshot.nodes.filter { it.visible && !it.bounds.isEmpty }
-        val scored = visible.mapNotNull { node -> score(selector, node)?.let { node to it } }
+        var scored = visible.mapNotNull { node -> score(selector, node)?.let { node to it } }
+        if (scored.isEmpty() && selector.text != null) scored = fuzzy(selector, visible)
         if (scored.isEmpty()) return Resolution.NotFound
         val best = scored.maxOf { it.second }
         val top = scored.filter { it.second == best }.map { it.first }
         val deduped = dedupeNested(top).sortedWith(compareBy({ it.bounds.top }, { it.bounds.left }))
         selector.index?.let { i -> return deduped.getOrNull(i)?.let { Resolution.Found(it) } ?: Resolution.NotFound }
         return if (deduped.size == 1) Resolution.Found(deduped.first()) else Resolution.Ambiguous(deduped)
+    }
+
+    private fun squash(s: String) =
+        java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").replace(Regex("[^a-z0-9]+"), " ").trim()
+
+    private fun fuzzy(selector: Selector, nodes: List<UiNode>): List<Pair<UiNode, Int>> {
+        val wanted = squash(selector.text.orEmpty())
+        if (wanted.isEmpty()) return emptyList()
+        val exact = nodes.filter { squash(it.label) == wanted || squash(it.description.orEmpty()) == wanted }
+        if (exact.isNotEmpty()) return exact.map { it to 2 }
+        return nodes.filter { n -> squash(n.label).let { it.isNotEmpty() && (it.contains(wanted) || (it.length >= 4 && wanted.contains(it))) } }.map { it to 1 }
     }
 
     private fun score(selector: Selector, node: UiNode): Int? {

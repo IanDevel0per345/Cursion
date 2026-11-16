@@ -32,7 +32,7 @@ class PolicyEngine(private val ownPackages: Set<String>) {
         snapshot: UiSnapshot?,
         settings: PolicySettings,
     ): PolicyDecision {
-        if (action is AgentAction.RequestUserConfirmation || action is AgentAction.ReportLimitation || action is AgentAction.CompleteTask) {
+        if (action is AgentAction.RequestUserConfirmation || action is AgentAction.ReportLimitation || action is AgentAction.CompleteTask || action is AgentAction.ContinuePlanning) {
             return PolicyDecision.Allow
         }
         if (settings.mode == AutonomyMode.OBSERVER && action.isInteractive()) {
@@ -89,7 +89,7 @@ class PolicyEngine(private val ownPackages: Set<String>) {
 
     private fun AgentAction.isInteractive() = when (this) {
         is AgentAction.TapElement, is AgentAction.TapPoint, is AgentAction.LongPress, is AgentAction.Swipe,
-        is AgentAction.ScrollContainer, is AgentAction.EnterText -> true
+        is AgentAction.ScrollContainer, is AgentAction.EnterText, is AgentAction.PressEnter -> true
         else -> false
     }
 

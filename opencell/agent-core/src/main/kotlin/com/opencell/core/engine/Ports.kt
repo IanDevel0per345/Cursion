@@ -34,6 +34,7 @@ data class ReplanContext(
     val reason: String,
     val completed: List<String>,
     val userHint: String?,
+    val continuation: Boolean = false,
 )
 
 interface Planner {
@@ -66,6 +67,7 @@ sealed interface TaskEvent {
     val taskId: String
     data class StateChanged(override val taskId: String, val state: AgentState) : TaskEvent
     data class PlanReady(override val taskId: String, val plan: Plan) : TaskEvent
+    data class PlanExtended(override val taskId: String, val steps: List<PlanStep>) : TaskEvent
     data class StepStarted(override val taskId: String, val step: PlanStep) : TaskEvent
     data class StepFinished(override val taskId: String, val result: StepResult) : TaskEvent
     data class ApprovalRequested(override val taskId: String, val stepId: String, val reason: String) : TaskEvent
@@ -79,7 +81,8 @@ fun interface TaskJournal {
 data class OrchestratorConfig(
     val maxSteps: Int = 40,
     val maxRetriesPerAction: Int = 2,
-    val maxReplans: Int = 2,
+    val maxReplans: Int = 4,
+    val maxContinuations: Int = 25,
     val maxRepeatSameAction: Int = 3,
     val settleDelayMs: Long = 400,
     val policy: PolicySettings = PolicySettings(),

@@ -170,6 +170,9 @@ class AgentRuntime(
                 is TaskEvent.StateChanged -> s.copy(agentState = event.state, panel = panelFor(event.state, s.panel))
                 is TaskEvent.PlanReady -> s.copy(steps = event.plan.steps.filter { it.action !is com.opencell.core.protocol.AgentAction.CompleteTask }
                     .map { StepUi(it.id, it.description, StepUiStatus.PENDING) })
+                is TaskEvent.PlanExtended -> s.copy(steps = s.steps.filter { it.status != StepUiStatus.PENDING } +
+                    event.steps.filter { it.action !is com.opencell.core.protocol.AgentAction.CompleteTask && it.action !is com.opencell.core.protocol.AgentAction.ContinuePlanning }
+                        .map { StepUi(it.id, it.description, StepUiStatus.PENDING) })
                 is TaskEvent.StepStarted -> s.copy(steps = s.steps.map { if (it.id == event.step.id) it.copy(status = StepUiStatus.RUNNING) else it })
                 is TaskEvent.StepFinished -> s.copy(steps = s.steps.map {
                     if (it.id == event.result.stepId) it.copy(status = event.result.status.toUi(), detail = event.result.detail) else it
@@ -218,6 +221,7 @@ class AgentRuntime(
             }
             val (kind, title, detail) = when (event) {
                 is TaskEvent.StateChanged -> Triple("state", event.state.name, "")
+                is TaskEvent.PlanExtended -> Triple("plan_extended", "Plano atualizado (${event.steps.size} passos)", event.steps.joinToString("\n") { "${it.id}: ${it.description}" })
                 is TaskEvent.PlanReady -> Triple("plan", "Plano com ${event.plan.steps.size} passos", event.plan.steps.joinToString("\n") { "${it.id}: ${it.description}" })
                 is TaskEvent.StepStarted -> Triple("step_start", event.step.description, "")
                 is TaskEvent.StepFinished -> Triple("step_${event.result.status.name.lowercase()}", event.result.description, event.result.detail)

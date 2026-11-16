@@ -64,7 +64,8 @@ object PlannerFactory {
 
     fun create(s: AppSettings, apiKey: String?, apps: AppResolver, counter: TokenCounter): Planner {
         val model = if (!apiKey.isNullOrBlank() && s.model.isNotBlank()) {
-            val cfg = ProviderConfig(s.providerKind, s.baseUrl, apiKey, s.model, s.timeoutSec * 1000L, s.temperature.toDoubleOrNull())
+            val cfg = ProviderConfig(s.providerKind, s.baseUrl, apiKey, s.model, s.timeoutSec * 1000L, s.temperature.toDoubleOrNull(),
+                thinkingBudget = if ("2.5-flash" in s.model) 0 else null)
             val primary = RetryingProvider(ProviderFactory.create(cfg, http), s.providerRetries)
             val fallback = s.fallbackModel.takeIf { it.isNotBlank() }?.let { RetryingProvider(ProviderFactory.create(cfg.copy(model = it), http), s.providerRetries) }
             ModelPlanner(MeteredProvider(FallbackProvider(primary, fallback), counter))

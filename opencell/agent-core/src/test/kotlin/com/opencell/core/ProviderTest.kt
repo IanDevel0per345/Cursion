@@ -177,4 +177,13 @@ class ProviderTest {
         assertTrue(PlanParser.parse(fenced).isSuccess)
         assertTrue(PlanParser.parse("""{"version":1,"goal":"oi","steps":[{"id":"s1","description":"resp","action":{"type":"complete_task","summary":"Olá!"}}]}""").isSuccess)
     }
+
+    @Test fun ruleBasedPlannerDoesNotMisparseCompoundCommands() = runTest {
+        listOf("abra o Chrome e pesquise por carros", "abra o app de notas e crie uma nota com título 'x'", "abra as configurações e ative o Wi-Fi",
+            "abrir o chrome, pesquisar no youtube link e abrir o canal do Just Gold").forEach {
+            assertTrue(it, RuleBasedPlanner().plan(it, null) is PlanResult.Failed)
+        }
+        assertTrue(RuleBasedPlanner().plan("abra o Chrome", null) is PlanResult.Ok)
+        assertTrue(RuleBasedPlanner().plan("abra o Chrome, toque em Mensagens", null) is PlanResult.Ok)
+    }
 }

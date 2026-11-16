@@ -86,4 +86,10 @@ class PerceptionTest {
         assertFalse(out.contains("123.456.789-09"))
         assertFalse(out.contains("hunter2"))
     }
+
+    @Test fun resolverToleratesPunctuationAndAccentDifferences() {
+        val s = snap(n("ch", "Canal: Código Fonte", 0, true), n("v", "Vídeo sobre Código Fonte", 100, true))
+        assertEquals("ch", (ElementResolver.resolve(Selector(text = "Canal Codigo Fonte"), s) as Resolution.Found).node.id)
+        assertEquals(Resolution.NotFound, ElementResolver.resolve(Selector(text = "Outro canal"), s))
+    }
 }

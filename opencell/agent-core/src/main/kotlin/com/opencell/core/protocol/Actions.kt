@@ -47,6 +47,12 @@ sealed interface AgentAction {
     @Serializable @SerialName("press_back")
     data object PressBack : AgentAction
 
+    @Serializable @SerialName("press_enter")
+    data class PressEnter(val selector: Selector? = null) : AgentAction
+
+    @Serializable @SerialName("continue_planning")
+    data object ContinuePlanning : AgentAction
+
     @Serializable @SerialName("wait_for_ui_change")
     data class WaitForUiChange(val timeoutMs: Long = 3000) : AgentAction
 

@@ -102,64 +102,99 @@ class Orchestrator(
         var index = 0
         var executed = 0
         var replans = 0
+        var continuations = 0
 
-        while (index < steps.size) {
+        while (true) {
             run.move(AgentState.OBSERVING)
             run.checkpoint()
             val cfg = config()
             if (executed >= cfg.maxSteps) throw Stop(Outcome.FAILED, "Limite de ${cfg.maxSteps} passos atingido.", AgentState.FAILED)
-            var step = steps[index]
+            val implicit = index >= steps.size
+            if (implicit && steps.lastOrNull()?.action is AgentAction.CompleteTask) break
+            var step = if (implicit) PlanStep("auto-continue-$continuations", "Continuar planejamento", AgentAction.ContinuePlanning) else steps[index]
 
             run.controller.takeCorrection()?.let { hint ->
-                val replanned = replan(run, step, "Correção do usuário", hint, null, steps, index)
+                val replanned = (replan(run, step, "Correção do usuário", hint, null, false) as? PlanResult.Ok)?.plan
                     ?: throw Stop(Outcome.FAILED, "Não consegui aplicar a correção: \"$hint\".", AgentState.FAILED)
-                steps.subList(index, steps.size).clear(); steps.addAll(replanned.steps); step = steps[index]
+                steps.subList(index.coerceAtMost(steps.size), steps.size).clear(); steps.addAll(replanned.steps); step = steps[index]
+                run.emit(TaskEvent.PlanExtended(run.taskId, replanned.steps))
+            }
+
+            if (step.action is AgentAction.ContinuePlanning) {
+                if (continuations >= cfg.maxContinuations) throw Stop(Outcome.FAILED, "Limite de ${cfg.maxContinuations} etapas de planejamento atingido.", AgentState.FAILED)
+                continuations++
+                run.move(AgentState.PLANNING)
+                val nextRes = replan(run, step, "Continuar a partir da tela atual", null, null, true)
+                if (nextRes !is PlanResult.Ok) {
+                    if (implicit) break
+                    val why = (nextRes as PlanResult.Failed).reason
+                    run.record(step, StepStatus.FAILED, "Não foi possível continuar o planejamento: $why")
+                    throw Stop(Outcome.FAILED, "Não consegui planejar os próximos passos: $why", AgentState.FAILED)
+                }
+                val fresh = nextRes.plan.steps.map { it.copy(id = "c$continuations-${it.id}") }
+                if (!implicit) run.record(step, StepStatus.VERIFIED, "Planejamento continuado com a tela atual.")
+                steps.subList(index.coerceAtMost(steps.size), steps.size).clear()
+                steps.addAll(fresh)
+                run.emit(TaskEvent.PlanExtended(run.taskId, fresh))
+                continue
             }
 
             run.emit(TaskEvent.StepStarted(run.taskId, step))
             executed++
             when (val outcome = runStep(run, step, cfg)) {
-                StepOutcome.Done -> index++
+                StepOutcome.Done -> {
+                    index++
+                    if (run.results.lastOrNull()?.status == StepStatus.VERIFIED) replans = 0
+                }
                 is StepOutcome.Finish -> {
                     run.record(step, StepStatus.VERIFIED, outcome.summary)
-                    return finishPlan(run, outcome.summary)
+                    return finishPlan(run, outcome.summary, evidenceBased = step.id.startsWith("c") || step.id.startsWith("r"))
                 }
                 is StepOutcome.Failed -> {
                     run.move(AgentState.RECOVERING)
                     val canReplan = replans < cfg.maxReplans
-                    val replanned = if (canReplan) {
+                    val replanRes = if (canReplan) {
                         replans++
                         run.move(AgentState.PLANNING)
-                        replan(run, step, outcome.reason, null, outcome.snapshot, steps, index)
+                        replan(run, step, outcome.reason, null, outcome.snapshot, false)
                     } else null
+                    val replanned = (replanRes as? PlanResult.Ok)?.plan
                     if (replanned == null) {
                         run.record(step, StepStatus.FAILED, outcome.reason)
-                        throw Stop(Outcome.FAILED, "Falha no passo \"${step.description}\": ${outcome.reason}", AgentState.FAILED)
+                        val extra = (replanRes as? PlanResult.Failed)?.reason?.let { " (replanejamento falhou: $it)" }.orEmpty()
+                        throw Stop(Outcome.FAILED, "Falha no passo \"${step.description}\": ${outcome.reason}$extra", AgentState.FAILED)
                     }
-                    steps.subList(index, steps.size).clear(); steps.addAll(replanned.steps)
+                    run.record(step, StepStatus.FAILED, "${outcome.reason} (replanejado)")
+                    val fresh = replanned.steps.map { it.copy(id = "r$replans-${it.id}") }
+                    steps.subList(index, steps.size).clear(); steps.addAll(fresh)
+                    run.emit(TaskEvent.PlanExtended(run.taskId, fresh))
                 }
             }
         }
         return finishPlan(run, "Plano concluído.")
     }
 
-    private fun finishPlan(run: Run, summary: String): TaskReport {
+    private fun finishPlan(run: Run, summary: String, evidenceBased: Boolean = false): TaskReport {
         val unverified = run.results.count { it.status == StepStatus.UNVERIFIED }
-        val outcome = if (unverified == 0) Outcome.SUCCESS else Outcome.PARTIAL
-        val text = if (unverified == 0) summary else "$summary Ação executada, resultado ainda não verificado em $unverified passo(s)."
+        val partial = unverified > 0 && !evidenceBased
+        val text = when {
+            unverified == 0 -> summary
+            partial -> "$summary Ação executada, resultado ainda não verificado em $unverified passo(s)."
+            else -> "$summary ($unverified passo(s) sem confirmação direta; a conclusão foi baseada na tela final observada.)"
+        }
         if (run.machine.canTransition(AgentState.COMPLETED)) run.move(AgentState.COMPLETED)
-        return run.report(outcome, text).also { run.emit(TaskEvent.Finished(run.taskId, it)) }
+        return run.report(if (partial) Outcome.PARTIAL else Outcome.SUCCESS, text).also { run.emit(TaskEvent.Finished(run.taskId, it)) }
     }
 
     private suspend fun replan(
-        run: Run, failed: PlanStep, reason: String, hint: String?, snapshot: UiSnapshot?,
-        steps: List<PlanStep>, index: Int,
-    ): Plan? {
+        run: Run, failed: PlanStep, reason: String, hint: String?, snapshot: UiSnapshot?, continuation: Boolean,
+    ): PlanResult {
         val ctx = ReplanContext(
             run.goal, snapshot ?: observer.snapshot(), failed, reason,
-            run.results.filter { it.status != StepStatus.FAILED }.map { it.description }, hint,
+            run.results.map { "${it.description} → ${it.status.name.lowercase()}: ${it.detail}".take(200) }, hint, continuation,
         )
-        return (planner.replan(ctx) as? PlanResult.Ok)?.plan?.takeIf { it.steps.isNotEmpty() }
+        val r = planner.replan(ctx)
+        return if (r is PlanResult.Ok && r.plan.steps.isEmpty()) PlanResult.Failed("O modelo devolveu um plano vazio.") else r
     }
 
     private sealed interface StepOutcome {
@@ -243,15 +278,16 @@ class Orchestrator(
             run.move(AgentState.VERIFYING)
             val explicit = step.expect
             val expectation = explicit ?: defaultExpectation(step.action)
-            var verdict = verifyAfter(before, expectation, cfg.settleDelayMs)
-            if (verdict?.ok == false) verdict = verifyAfter(before, expectation, cfg.settleDelayMs * 3)
+            var (verdict, after) = verifyAfter(before, expectation, cfg.settleDelayMs)
+            if (verdict?.ok == false) verifyAfter(before, expectation, cfg.settleDelayMs * 3).let { verdict = it.first; after = it.second ?: after }
+            val v = verdict
             when {
-                verdict == null -> {
+                v == null -> {
                     run.record(step, StepStatus.UNVERIFIED, "Ação executada, resultado ainda não verificado (tela indisponível).")
                     return StepOutcome.Done
                 }
-                verdict.ok -> {
-                    run.record(step, StepStatus.VERIFIED, verdict.detail)
+                v.ok -> {
+                    run.record(step, StepStatus.VERIFIED, v.detail)
                     return StepOutcome.Done
                 }
                 explicit == null -> {
@@ -259,11 +295,14 @@ class Orchestrator(
                     return StepOutcome.Done
                 }
                 risk != Risk.NONE -> {
-                    run.record(step, StepStatus.UNVERIFIED, "Ação executada, resultado ainda não verificado. ${verdict.detail}")
+                    run.record(step, StepStatus.UNVERIFIED, "Ação executada, resultado ainda não verificado. ${v.detail}")
                     throw Stop(Outcome.PARTIAL, "Ação com efeito externo executada, mas não confirmada. Verifique manualmente antes de repetir.", AgentState.COMPLETED)
                 }
+                after != null && Verifier.signature(after!!) != Verifier.signature(before) -> {
+                    return StepOutcome.Failed("A tela mudou, mas o resultado esperado não apareceu (${v.detail}). Não repito a ação para evitar desfazer o efeito.", after)
+                }
                 else -> {
-                    lastReason = verdict.detail
+                    lastReason = v.detail
                     attempt = recover(run, cfg, attempt)
                 }
             }
@@ -277,11 +316,11 @@ class Orchestrator(
         return attempt + 1
     }
 
-    private suspend fun verifyAfter(before: UiSnapshot, expectation: Expectation?, settleMs: Long) =
-        expectation?.let {
-            delay(settleMs)
-            observer.snapshot()?.let { after -> Verifier.check(it, before, after) }
-        } ?: observer.snapshot()?.let { Verifier.check(Expectation.ScreenChanged, before, it) }
+    private suspend fun verifyAfter(before: UiSnapshot, expectation: Expectation?, settleMs: Long): Pair<com.opencell.core.perception.Verification?, UiSnapshot?> {
+        delay(settleMs)
+        val after = observer.snapshot() ?: return null to null
+        return Verifier.check(expectation ?: Expectation.ScreenChanged, before, after) to after
+    }
 
     private suspend fun askApproval(run: Run, step: PlanStep, reason: String, risk: Risk) {
         run.move(AgentState.WAITING_FOR_APPROVAL)
@@ -321,6 +360,7 @@ class Orchestrator(
         is AgentAction.LongPress -> selector
         is AgentAction.EnterText -> selector
         is AgentAction.ScrollContainer -> selector
+        is AgentAction.PressEnter -> selector
         else -> null
     }
 }

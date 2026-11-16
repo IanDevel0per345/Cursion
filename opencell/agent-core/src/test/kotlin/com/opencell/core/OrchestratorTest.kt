@@ -238,4 +238,36 @@ class OrchestratorTest {
         assertEquals(1, d.sent)
         assertTrue(gate.asked.isEmpty())
     }
+
+    @Test fun wrongExpectationAfterScreenChangeDoesNotRepeatTheAction() = runTest {
+        val d = FakeDevice(); val j = Events()
+        val plan = Plan(goal = "g", steps = listOf(step("s1", tap("Mensagens"), Expectation.TextVisible("Texto que nunca aparece")), step("s2", AgentAction.CompleteTask("ok"))))
+        val replan = Plan(goal = "g", steps = listOf(step("r1", AgentAction.CompleteTask("ok pela tela atual"))))
+        val planner = FixedPlanner(plan, replan)
+        val report = orch(d, planner, Gate(true), j).run("x")
+        assertEquals(1, d.executed.size)
+        assertEquals(1, planner.replanCalls)
+        assertEquals(Outcome.SUCCESS, report.outcome)
+    }
+
+    @Test fun planningFailureReasonIsShownToTheUser() = runTest {
+        val d = FakeDevice(); val j = Events()
+        val plan = Plan(goal = "g", steps = listOf(step("s1", tap("Mensagens")), step("s2", AgentAction.ContinuePlanning)))
+        val planner = object : Planner {
+            override suspend fun plan(goal: String, snapshot: UiSnapshot?) = PlanResult.Ok(plan)
+            override suspend fun replan(context: ReplanContext) = PlanResult.Failed("Limite de requisições atingido (HTTP 429)")
+        }
+        val report = orch(d, planner, Gate(true), j).run("x")
+        assertEquals(Outcome.FAILED, report.outcome)
+        assertTrue(report.summary.contains("429"))
+    }
+
+    @Test fun continuePlanningExtendsPlanFromTheNewScreen() = runTest {
+        val d = FakeDevice(); val j = Events()
+        val first = Plan(goal = "g", steps = listOf(step("s1", tap("Mensagens")), step("s2", AgentAction.ContinuePlanning)))
+        val second = Plan(goal = "g", steps = listOf(step("s1", tap("Cliente A")), step("s2", AgentAction.CompleteTask("pronto"))))
+        val report = orch(d, FixedPlanner(first, second), Gate(true), j).run("x")
+        assertEquals(Outcome.SUCCESS, report.outcome)
+        assertEquals("chat", d.screen)
+    }
 }

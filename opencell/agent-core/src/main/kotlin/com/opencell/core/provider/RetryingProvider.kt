@@ -6,7 +6,7 @@ class RetryingProvider(
     private val delegate: LanguageModelProvider,
     private val maxRetries: Int = 2,
     private val baseDelayMs: Long = 800,
-    private val maxDelayMs: Long = 20_000,
+    private val maxDelayMs: Long = 60_000,
 ) : LanguageModelProvider by delegate {
 
     override suspend fun generate(request: ModelRequest): ModelResponse {
@@ -16,7 +16,7 @@ class RetryingProvider(
                 return delegate.generate(request)
             } catch (e: ProviderException) {
                 if (!e.retryable || attempt >= maxRetries) throw e
-                val wait = ((e as? ProviderException.RateLimited)?.retryAfterMs ?: (baseDelayMs shl attempt)).coerceAtMost(maxDelayMs)
+                val wait = ((e as? ProviderException.RateLimited)?.retryAfterMs ?: ((if (e is ProviderException.RateLimited) baseDelayMs * 5 else baseDelayMs) shl attempt)).coerceAtMost(maxDelayMs)
                 delay(wait)
                 attempt++
             }

@@ -43,6 +43,7 @@ class AndroidActionExecutor(
             is AgentAction.EnterText -> setText(bridge, target, action.text)
             is AgentAction.ScrollContainer -> scroll(bridge, action, target, snapshot)
             is AgentAction.Swipe -> swipe(bridge, action.direction, snapshot)
+            is AgentAction.PressEnter -> pressEnter(bridge, target)
             AgentAction.PressBack -> if (bridge.back()) ExecResult.Dispatched else ExecResult.Failed("O sistema recusou a ação Voltar.")
             is AgentAction.TapPoint -> tapPoint(bridge, action, snapshot)
             else -> ExecResult.Failed("Ação ${action::class.simpleName} não é executada no dispositivo.")
@@ -59,6 +60,13 @@ class AndroidActionExecutor(
         val intent = apps.launchIntent(app) ?: return ExecResult.Failed("${app.label} não possui tela inicial lançável.")
         return runCatching { context.startActivity(intent); ExecResult.Dispatched }
             .getOrElse { ExecResult.Failed("Não foi possível abrir ${app.label}: ${it.message}") }
+    }
+
+    private fun pressEnter(bridge: AccessibilityBridge, target: UiNode?): ExecResult {
+        val node = target?.let { bridge.nodeFor(it) } ?: bridge.focusedInput()
+            ?: return ExecResult.Failed("Nenhum campo de texto focado para pressionar Enter.")
+        if (android.os.Build.VERSION.SDK_INT >= 30 && node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return ExecResult.Dispatched
+        return ExecResult.Failed("Enter não suportado neste campo/versão do Android (exige Android 11+). Toque na sugestão ou no botão de busca.")
     }
 
     private suspend fun click(bridge: AccessibilityBridge, target: UiNode?, snapshot: UiSnapshot, longClick: Boolean): ExecResult {

@@ -12,6 +12,7 @@ data class ProviderConfig(
     val timeoutMs: Long = 60_000,
     val temperature: Double? = null,
     val maxTokens: Int = 8192,
+    val thinkingBudget: Int? = null,
 ) {
     companion object {
         fun defaultBaseUrl(kind: ProviderKind) = when (kind) {

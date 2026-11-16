@@ -103,6 +103,8 @@ class AccessibilityBridge(private val service: AccessibilityService, private val
         return if (label == target.label || target.label.isBlank()) cur else null
     }
 
+    fun focusedInput(): AccessibilityNodeInfo? = targetRoot()?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+
     fun clickableAncestor(node: AccessibilityNodeInfo, longClick: Boolean): AccessibilityNodeInfo? {
         var cur: AccessibilityNodeInfo? = node
         var hops = 0

@@ -129,6 +129,7 @@ class GeminiProvider(override val config: ProviderConfig, private val http: Http
                 put("maxOutputTokens", config.maxTokens)
                 config.temperature?.let { put("temperature", it) }
                 if (request.jsonMode) put("responseMimeType", "application/json")
+                config.thinkingBudget?.let { b -> putJsonObject("thinkingConfig") { put("thinkingBudget", b) } }
             }
         }.toString()
         val url = "${config.baseUrl.trimBase()}/v1beta/models/${config.model}:generateContent"
