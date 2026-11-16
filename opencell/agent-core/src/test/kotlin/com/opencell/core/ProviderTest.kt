@@ -171,4 +171,10 @@ class ProviderTest {
         try { GeminiProvider(cfg(ProviderKind.GEMINI, "x"), http).generate(req); fail() }
         catch (e: ProviderException.Client) { assertTrue(e.message!!.contains("Listar modelos")) }
     }
+
+    @Test fun parserHandlesFencedJsonWithoutRegex() {
+        val fenced = "Aqui está:\n```json\n$planJson\n```\nPronto."
+        assertTrue(PlanParser.parse(fenced).isSuccess)
+        assertTrue(PlanParser.parse("""{"version":1,"goal":"oi","steps":[{"id":"s1","description":"resp","action":{"type":"complete_task","summary":"Olá!"}}]}""").isSuccess)
+    }
 }

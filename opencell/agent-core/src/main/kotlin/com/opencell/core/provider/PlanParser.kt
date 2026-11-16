@@ -32,8 +32,6 @@ object PlanParser {
     }
 
     private fun extractJson(raw: String): String? {
-        val fenced = Regex("```(?:json)?\\s*(\\{.*?})\\s*```", RegexOption.DOT_MATCHES_ALL).find(raw)?.groupValues?.get(1)
-        if (fenced != null) return fenced
         val start = raw.indexOf('{')
         val end = raw.lastIndexOf('}')
         return if (start in 0 until end) raw.substring(start, end + 1) else null

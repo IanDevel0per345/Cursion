@@ -44,7 +44,11 @@ private class AppAwarePlanner(private val inner: Planner, private val apps: AppR
         val steps = plan.steps.map { step ->
             val a = step.action as? AgentAction.OpenApplication ?: return@map step
             val app = apps.resolve(a.appName, a.packageName)
-                ?: return PlanResult.Failed("Aplicativo \"${a.appName ?: a.packageName}\" não está instalado ou não tem tela inicial.")
+                ?: return PlanResult.Failed(
+                    if (a.appName.orEmpty().lowercase().let { "teste" in it || "playground" in it })
+                        "O OpenCell Test Playground não está instalado. Instale o APK do Playground para fazer o teste guiado."
+                    else "Aplicativo \"${a.appName ?: a.packageName}\" não está instalado ou não tem tela inicial.",
+                )
             step.copy(
                 description = "Abrir ${app.label}",
                 action = AgentAction.OpenApplication(app.label, app.packageName),
