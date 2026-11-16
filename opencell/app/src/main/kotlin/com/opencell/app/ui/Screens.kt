@@ -282,6 +282,11 @@ fun ProvidersScreen(c: AppContainer, back: () -> Unit) {
         val k = key.ifBlank { c.secrets.get(API_KEY_SECRET).orEmpty() }
         if (k.isBlank()) { error = "Informe a chave de API."; return null }
         if (model.isBlank()) { error = "Informe o identificador do modelo."; return null }
+        val googleKey = k.startsWith("AIza") || k.startsWith("AQ.")
+        if (googleKey && kind != ProviderKind.GEMINI) {
+            error = "Esta chave parece ser do Google (Gemini), mas o provedor selecionado é outro. Selecione \"Google Gemini\"."
+            return null
+        }
         return ProviderConfig(kind, baseUrl.trim(), k, model.trim(), s.timeoutSec * 1000L, s.temperature.toDoubleOrNull())
     }
 

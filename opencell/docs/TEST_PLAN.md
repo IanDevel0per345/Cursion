@@ -3,7 +3,7 @@
 ## Executado neste ambiente (Linux, JDK 21, sem dispositivo)
 | Comando | Resultado |
 |---|---|
-| `./gradlew :agent-core:test` | **52 testes, 0 falhas** (StateMachine 5, Perception 9, Policy 10, Provider 13, Orchestrator 15) |
+| `./gradlew :agent-core:test` | **54 testes, 0 falhas** (StateMachine 5, Perception 9, Policy 10, Provider 15, Orchestrator 15) |
 | `./gradlew :app:assembleDebug :playground:assembleDebug` | Sucesso (APKs debug, não assinados para distribuição) |
 | `./gradlew :app:lintDebug :playground:lintDebug` | 0 erros (app: 5 avisos; playground: 3) |
 | `./gradlew :app:compileDebugAndroidTestKotlin` | Sucesso |

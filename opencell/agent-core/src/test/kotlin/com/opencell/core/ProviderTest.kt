@@ -159,4 +159,16 @@ class ProviderTest {
         assertTrue(actions.last() is AgentAction.CompleteTask)
         assertTrue(RuleBasedPlanner().plan("faça meu imposto de renda", null) is PlanResult.Failed)
     }
+
+    @Test fun truncatedResponsesAreReportedNotParsedAsPlans() = runTest {
+        server.enqueue(MockResponse().setBody("""{"candidates":[{"content":{"parts":[{"text":"{\"version\":1,"}]},"finishReason":"MAX_TOKENS"}]}"""))
+        try { GeminiProvider(cfg(ProviderKind.GEMINI, "gemini-2.5-flash"), http).generate(req); fail() }
+        catch (e: ProviderException.InvalidResponse) { assertTrue(e.message!!.contains("cortada")) }
+    }
+
+    @Test fun notFoundModelGivesActionableMessage() = runTest {
+        server.enqueue(MockResponse().setResponseCode(404).setBody("""{"error":{"message":"models/x is not found"}}"""))
+        try { GeminiProvider(cfg(ProviderKind.GEMINI, "x"), http).generate(req); fail() }
+        catch (e: ProviderException.Client) { assertTrue(e.message!!.contains("Listar modelos")) }
+    }
 }

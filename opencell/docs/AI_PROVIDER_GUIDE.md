@@ -11,3 +11,6 @@
 Chave: digitada no campo, gravada cifrada (AES-GCM, chave no Android Keystore), nunca exibida de volta, nunca em logs/erros (`Redactor` + mensagens sem corpo bruto). Retentativas com backoff para 429/5xx/rede, respeitando `Retry-After`; 401/403 não são repetidos. Fallback de modelo opcional.
 
 Não implementados: teste de visão, streaming (a interface existe, a implementação emite um bloco), estimativa de custo, modelos locais.
+
+## Verificação real (Gemini)
+Com uma chave Gemini real, o código do app (`GeminiProvider`, `ConnectionTester`, `ModelPlanner`) foi executado contra `generativelanguage.googleapis.com`: listagem de modelos, geração de texto e plano JSON válido passaram. Achados: modelos 2.5 gastam o limite de saída com raciocínio interno (agora `maxTokens=8192` e resposta cortada vira erro explícito); `gemini-2.0-flash` e `gemini-1.5-flash` retornaram 404 (use "Listar modelos"). OpenAI e Anthropic continuam testados só contra servidor simulado.

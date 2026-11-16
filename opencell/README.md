@@ -10,7 +10,7 @@ Escrito e validado **neste ambiente (Linux, sem emulador, sem KVM, sem aparelho)
 
 | Item | Estado |
 |---|---|
-| Núcleo do agente (`agent-core`: protocolo, política, máquina de estados, orquestrador, resolvedor, verificador, provedores, parser de plano) | Implementado e **validado por 52 testes JVM** (0 falhas) |
+| Núcleo do agente (`agent-core`: protocolo, política, máquina de estados, orquestrador, resolvedor, verificador, provedores, parser de plano) | Implementado e **validado por 54 testes JVM** (0 falhas) |
 | Clientes OpenAI-compatível / Anthropic / Gemini | Implementados e validados **somente contra servidor simulado** (MockWebServer). Nenhuma chamada real foi feita com chave verdadeira |
 | App Android (`app`) e Test Playground | **Compilam** (`assembleDebug`), `lintDebug` com 0 erros; testes instrumentados **compilam** |
 | Serviço de acessibilidade, gestos reais, painel sobreposto, voz, assistente, tile, Keystore, Room/DataStore em execução, UI renderizada | **Implementado, NÃO testado em aparelho** |

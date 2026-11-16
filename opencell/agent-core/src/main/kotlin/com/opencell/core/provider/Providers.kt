@@ -23,6 +23,7 @@ private fun HttpResponse.ensureOk(): String {
     if (code in 200..299) return body
     val detail = errorDetail(body)
     throw when (code) {
+        404 -> ProviderException.Client(code, "Modelo ou endpoint não encontrado (HTTP 404). Confira o identificador do modelo (use \"Listar modelos\") e o endpoint. $detail")
         401, 403 -> ProviderException.Auth("Credencial recusada pelo provedor (HTTP $code). $detail")
         429 -> ProviderException.RateLimited(retryAfterMs, "Limite de requisições atingido (HTTP 429). $detail")
         in 500..599 -> ProviderException.Server(code, "Erro no servidor do provedor (HTTP $code). $detail")
@@ -36,6 +37,9 @@ private fun errorDetail(body: String): String = runCatching {
     val msg = (err as? JsonObject)?.get("message")?.jsonPrimitive?.contentOrNull ?: (err as? JsonPrimitive)?.contentOrNull
     Redactor.redact(msg.orEmpty()).take(300)
 }.getOrDefault("")
+
+private fun truncated(reason: String?, model: String): Nothing =
+    throw ProviderException.InvalidResponse("Resposta cortada pelo limite de tokens ($reason) em $model. Modelos com raciocínio interno gastam parte do limite; use um modelo mais leve ou reduza o pedido.")
 
 private fun parse(body: String): JsonObject = try {
     lenient.parseToJsonElement(body).jsonObject
@@ -62,6 +66,8 @@ class OpenAiCompatibleProvider(override val config: ProviderConfig, private val 
         val root = parse(http.postJson("${config.baseUrl.trimBase()}/chat/completions", headers, body, config.timeoutMs).ensureOk())
         val text = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
             ?: throw ProviderException.InvalidResponse("Resposta sem choices[0].message.content.")
+        val finish = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("finish_reason")?.jsonPrimitive?.contentOrNull
+        if (finish == "length") truncated(finish, config.model)
         val usage = root["usage"] as? JsonObject
         return ModelResponse(text, usage?.get("prompt_tokens")?.jsonPrimitive?.intOrNull, usage?.get("completion_tokens")?.jsonPrimitive?.intOrNull, config.model)
     }
@@ -91,6 +97,8 @@ class AnthropicProvider(override val config: ProviderConfig, private val http: H
         val text = root["content"]?.jsonArray?.mapNotNull { block ->
             block.jsonObject.takeIf { it["type"]?.jsonPrimitive?.contentOrNull == "text" }?.get("text")?.jsonPrimitive?.contentOrNull
         }?.joinToString("")?.takeIf { it.isNotEmpty() } ?: throw ProviderException.InvalidResponse("Resposta sem bloco de texto.")
+        val stop = root["stop_reason"]?.jsonPrimitive?.contentOrNull
+        if (stop == "max_tokens") truncated(stop, config.model)
         val usage = root["usage"] as? JsonObject
         return ModelResponse(text, usage?.get("input_tokens")?.jsonPrimitive?.intOrNull, usage?.get("output_tokens")?.jsonPrimitive?.intOrNull, config.model)
     }
@@ -125,7 +133,10 @@ class GeminiProvider(override val config: ProviderConfig, private val http: Http
         }.toString()
         val url = "${config.baseUrl.trimBase()}/v1beta/models/${config.model}:generateContent"
         val root = parse(http.postJson(url, headers, body, config.timeoutMs).ensureOk())
-        val parts: JsonArray = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray
+        val candidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
+        val finish = candidate?.get("finishReason")?.jsonPrimitive?.contentOrNull
+        if (finish == "MAX_TOKENS") truncated(finish, config.model)
+        val parts: JsonArray = candidate?.get("content")?.jsonObject?.get("parts")?.jsonArray
             ?: throw ProviderException.InvalidResponse("Resposta sem candidates[0].content.parts (possível bloqueio de segurança).")
         val text = parts.mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.contentOrNull }.joinToString("")
         val usage = root["usageMetadata"] as? JsonObject
