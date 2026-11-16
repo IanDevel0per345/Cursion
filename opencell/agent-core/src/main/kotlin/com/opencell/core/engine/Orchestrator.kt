@@ -189,7 +189,9 @@ class Orchestrator(
         while (attempt <= cfg.maxRetriesPerAction) {
             run.checkpoint()
             run.move(AgentState.OBSERVING)
-            val before = observer.snapshot()
+            val before = observer.snapshot() ?: if (step.action is AgentAction.OpenApplication) {
+                UiSnapshot(0, clock.nowMs(), "", 0, 0, emptyList())
+            } else null
             if (before == null) {
                 run.move(AgentState.WAITING_FOR_PERMISSION)
                 throw Stop(Outcome.FAILED, "Não consigo observar a tela: serviço de acessibilidade indisponível.", AgentState.FAILED)

@@ -13,7 +13,7 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 dependencies {
     api(libs.coroutines.core)
     api(libs.serialization.json)
-    implementation(libs.okhttp)
+    api(libs.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)

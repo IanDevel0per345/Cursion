@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="open_panel"
+        android:enabled="true"
+        android:icon="@drawable/ic_stat"
+        android:shortcutShortLabel="@string/tile_label">
+        <intent
+            android:action="com.opencell.app.action.SHOW_PANEL"
+            android:targetPackage="com.opencell.app"
+            android:targetClass="com.opencell.app.ui.PanelActivity" />
+    </shortcut>
+</shortcuts>

@@ -72,7 +72,7 @@ sealed interface TaskEvent {
     data class Finished(override val taskId: String, val report: TaskReport) : TaskEvent
 }
 
-interface TaskJournal {
+fun interface TaskJournal {
     fun onEvent(event: TaskEvent)
 }
 

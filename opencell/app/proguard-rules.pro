@@ -1,0 +1,3 @@
+-keep class com.opencell.core.** { *; }
+-keepattributes *Annotation*, InnerClasses
+-dontwarn org.slf4j.**

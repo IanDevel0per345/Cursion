@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCell</string>
+    <string name="accessibility_service_label">OpenCell Agente</string>
+    <string name="accessibility_service_description">Permite que o OpenCell leia o conteúdo da tela e execute toques, rolagens e digitação somente quando você pedir uma tarefa. Você pode desativar a qualquer momento nas configurações de acessibilidade. Nenhuma ação é executada em segundo plano sem uma tarefa iniciada por você.</string>
+    <string name="tile_label">OpenCell</string>
+    <string name="assist_label">OpenCell</string>
+    <string name="notif_channel_tasks">Tarefas do OpenCell</string>
+    <string name="notif_channel_wake">Escuta por palavra de ativação</string>
+</resources>

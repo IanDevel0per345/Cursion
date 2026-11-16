@@ -212,4 +212,16 @@ class OrchestratorTest {
         assertEquals(Outcome.SUCCESS, report.outcome)
         assertEquals("list", d.screen)
     }
+
+    @Test fun openApplicationWorksEvenWhenNoTargetWindowIsObservable() = runTest {
+        val d = FakeDevice().apply { snapshotsAvailable = false }; val j = Events()
+        d.onExecute = { d.snapshotsAvailable = true }
+        val plan = Plan(goal = "g", steps = listOf(
+            step("s1", AgentAction.OpenApplication("App", "com.test.app"), Expectation.PackageIs("com.test.app")),
+            step("s2", AgentAction.CompleteTask("ok")),
+        ))
+        val report = orch(d, FixedPlanner(plan), Gate(true), j).run("abrir")
+        assertEquals(report.summary, Outcome.SUCCESS, report.outcome)
+        assertEquals(StepStatus.VERIFIED, report.steps.first().status)
+    }
 }
