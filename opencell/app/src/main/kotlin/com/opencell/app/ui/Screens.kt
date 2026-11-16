@@ -379,7 +379,7 @@ fun SettingsScreen(c: AppContainer, back: () -> Unit) {
                 "Uma instrução ambígua ou um erro da IA pode causar ações que não dá para desfazer. " +
                 "Continuam bloqueados: digitar em campos de senha, apps bloqueados e telas protegidas. O botão Parar OpenCell sempre funciona.")
         },
-        confirmButton = { TextButton(onClick = { askPermissive = false; update { it.copy(autonomy = AutonomyMode.PERMISSIVE) } }) { Text("Ativar mesmo assim") } },
+        confirmButton = { TextButton(onClick = { askPermissive = false; scope.launch { c.settingsRepo.update { it.copy(autonomy = AutonomyMode.PERMISSIVE) } } }) { Text("Ativar mesmo assim") } },
         dismissButton = { TextButton(onClick = { askPermissive = false }) { Text("Cancelar") } },
     )
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
